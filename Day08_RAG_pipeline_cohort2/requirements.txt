@@ -1,39 +1,49 @@
 # Core
 python-dotenv>=1.0.0
 requests>=2.31.0
+numpy>=1.26.0
 
 # Task 2 - Crawling
 crawl4ai>=0.3.0
 
 # Task 3 - Document conversion
-markitdown>=0.1.0
+markitdown[docx,pdf]>=0.1.0
 
 # Task 4 - Chunking & Indexing
 langchain-text-splitters>=0.2.0
 sentence-transformers>=2.2.0
-weaviate-client>=4.5.0
-# chromadb>=0.4.0        # Alternative
+chromadb>=0.5.0
+# weaviate-client>=4.5.0 # Optional alternative
 # faiss-cpu>=1.7.4       # Alternative
 
 # Task 6 - BM25
 rank-bm25>=0.2.2
 
-# Task 7 - Reranking (choose one)
-# transformers>=4.40.0   # For local reranker models
+# Task 7 - Reranking
+# Installed transitively by sentence-transformers, kept explicit for clarity.
+transformers>=4.40.0
+torch>=2.1.0
 
-# Task 8 - PageIndex
+# Task 8 - PageIndex (optional API; local fallback works without API key)
 pageindex>=0.1.0
 
 # Task 10 - Generation
 openai>=1.30.0
-google-generativeai>=0.5.0  # Alternative: Gemini
+google-generativeai>=0.5.0
 
-# Group project - UI
+# Group project - Multi-agent UI and local MCP stdio capability
 streamlit>=1.35.0
-# gradio>=4.30.0         # Alternative
-# chainlit>=1.0.0        # Alternative for chatbot
 
-# Group project - Evaluation (choose one)
+# Group project - Evaluation
+pytest>=8.0.0
+ragas>=0.2.0
+datasets>=2.19.0
+pandas>=2.0.0
+langchain-google-genai>=2.0.0
 deepeval>=1.0.0
-# ragas>=0.1.0           # Alternative
-# trulens>=1.0.0         # Alternative
+
+# Optional UI / evaluation alternatives
+# gradio>=4.30.0
+# chainlit>=1.0.0
+# trulens>=1.0.0
+# trulens-providers-openai>=1.0.0
