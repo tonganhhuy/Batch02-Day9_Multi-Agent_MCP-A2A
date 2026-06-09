@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stage 4 · In-Process Multi-Agent Demo</title>
+  <style>
+    :root{--bg:#080e1b;--panel:#0e192d;--panel2:#13223c;--line:#293b5c;--text:#edf4ff;--muted:#9dafc9;--blue:#60a5fa;--amber:#fbbf24;--green:#34d399;--purple:#c084fc;--cyan:#22d3ee;--red:#fb7185}
+    *{box-sizing:border-box}html{color-scheme:dark}body{margin:0;min-width:320px;background:radial-gradient(circle at 12% 0,rgba(251,191,36,.12),transparent 28rem),radial-gradient(circle at 90% 12%,rgba(34,211,238,.1),transparent 28rem),var(--bg);color:var(--text);font:15px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+    button,select,textarea{font:inherit}button{cursor:pointer}button:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid rgba(34,211,238,.55);outline-offset:2px}
+    .shell{max-width:1500px;margin:auto;padding:24px}.top{display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:18px}.eyebrow{font-size:12px;color:var(--amber);font-weight:900;letter-spacing:.12em;text-transform:uppercase}h1{font-size:clamp(28px,4vw,45px);line-height:1.08;letter-spacing:-.04em;margin:4px 0}.sub{margin:0;color:var(--muted);max-width:800px}.badge{white-space:nowrap;padding:8px 12px;border:1px solid rgba(251,191,36,.45);background:rgba(251,191,36,.1);border-radius:999px;color:#fde68a;font-weight:800}
+    .grid{display:grid;grid-template-columns:minmax(280px,.82fr) minmax(620px,1.85fr) minmax(300px,.95fr);gap:16px}.card{background:rgba(14,25,45,.94);border:1px solid var(--line);border-radius:16px;box-shadow:0 18px 50px rgba(0,0,0,.28)}.panel{padding:18px}.panel h2{font-size:15px;margin:0 0 14px}.field{display:grid;gap:7px;margin-bottom:13px}label{font-size:13px;font-weight:750;color:#cad8eb}select,textarea{width:100%;border:1px solid var(--line);border-radius:12px;background:#091326;color:var(--text);padding:11px 12px}textarea{min-height:105px;resize:vertical}.helper{font-size:12px;color:var(--muted)}.buttons{display:grid;grid-template-columns:1fr 1fr;gap:9px}.btn{min-height:44px;border:1px solid var(--line);border-radius:12px;background:var(--panel2);color:var(--text);font-weight:800;padding:10px 12px;transition:.16s}.btn:hover{transform:translateY(-1px);border-color:var(--amber)}.btn.primary{background:linear-gradient(135deg,#d97706,#7c3aed);border-color:transparent}.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+    .concept{display:grid;gap:8px;margin-top:18px}.concept div{padding:9px 10px;border:1px solid var(--line);border-radius:11px;background:#091326}.concept strong{display:block;font-size:12px}.concept small{color:var(--muted)}
+    .canvas-card{overflow:hidden}.canvas-head{display:flex;justify-content:space-between;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);background:rgba(19,34,60,.7)}.process-pill{font:700 11px ui-monospace,monospace;color:#fde68a}.canvas{position:relative;min-height:700px;overflow:hidden;background:linear-gradient(rgba(41,59,92,.16) 1px,transparent 1px),linear-gradient(90deg,rgba(41,59,92,.16) 1px,transparent 1px);background-size:28px 28px}
+    .graph-box{position:absolute;left:24px;right:24px;top:74px;bottom:24px;border:2px solid rgba(251,191,36,.5);border-radius:18px;background:rgba(8,18,35,.38);z-index:0}.graph-label{position:absolute;left:50%;top:-15px;transform:translateX(-50%);padding:5px 11px;border:1px solid rgba(251,191,36,.4);border-radius:999px;background:#241807;color:#fde68a;font:800 11px ui-monospace,monospace;white-space:nowrap}
+    .node{position:absolute;width:174px;min-height:78px;padding:11px;z-index:3;border:1px solid var(--line);border-radius:14px;background:rgba(10,21,39,.97);box-shadow:0 12px 28px rgba(0,0,0,.25);transition:.2s}.node.active{transform:translateY(-2px);border-color:var(--cyan);box-shadow:0 0 0 3px rgba(34,211,238,.12),0 14px 30px rgba(0,0,0,.3)}.node.skipped{opacity:.34}.node.done{border-color:var(--green)}.node-top{display:flex;justify-content:space-between;gap:8px}.status{font-size:9px;color:var(--muted);font-weight:900;text-transform:uppercase;letter-spacing:.08em}.node.active .status{color:var(--cyan)}.node.done .status{color:var(--green)}.node h3{font-size:13px;margin:8px 0 2px}.node p{font-size:10px;color:var(--muted);margin:0}.analyze{left:calc(50% - 87px);top:100px}.router{left:calc(50% - 87px);top:218px}.tax{left:45px;top:380px}.compliance{left:calc(50% - 87px);top:380px}.privacy{right:45px;top:380px}.aggregate{left:calc(50% - 87px);top:555px}
+    .send-label{position:absolute;z-index:4;left:calc(50% - 72px);top:321px;width:144px;text-align:center;padding:5px;border:1px solid rgba(251,191,36,.45);border-radius:999px;background:#241807;color:#fde68a;font:800 10px ui-monospace,monospace}.packet{position:absolute;z-index:6;display:none;padding:5px 8px;border:1px solid var(--cyan);border-radius:999px;background:#06243a;color:#cffafe;font:700 10px ui-monospace,monospace;pointer-events:none}
+    svg.links{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}.link{fill:none;stroke:#3b4e70;stroke-width:2;stroke-dasharray:6 7}.link.hot{stroke:var(--cyan);stroke-width:3;animation:dash .65s linear infinite}@keyframes dash{to{stroke-dashoffset:-26}}
+    .side{display:grid;gap:16px;align-content:start}.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.metric{padding:9px;border:1px solid var(--line);border-radius:11px;background:#091326}.metric span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase}.metric strong{font-size:17px;font-variant-numeric:tabular-nums}.state{display:grid;gap:7px}.state-row{display:grid;grid-template-columns:1fr auto;gap:8px;padding:7px 9px;border:1px solid var(--line);border-radius:9px;background:#091326;font:11px ui-monospace,monospace}.state-row span:first-child{color:#b9c9df}.value{color:var(--amber);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.timeline{display:grid;gap:7px;max-height:255px;overflow:auto}.event{padding:8px 9px;border-left:3px solid var(--blue);border-radius:8px;background:#091326}.event.parallel{border-color:var(--green)}.event p{margin:3px 0 0;font-size:11px}.event-meta{display:flex;justify-content:space-between;color:var(--muted);font:9px ui-monospace,monospace}.message{min-height:88px;padding:11px;border:1px solid var(--line);border-radius:11px;background:#091326;color:#cbd9ed;font-size:12px}
+    .compare{display:grid;grid-template-columns:1fr 1fr;gap:9px}.compare div{padding:9px;border:1px solid var(--line);border-radius:10px;background:#091326}.compare strong{font-size:11px;color:var(--amber)}.compare div:last-child strong{color:var(--green)}.compare small{display:block;color:var(--muted);margin-top:4px}.footer{color:var(--muted);font-size:12px;text-align:center;margin-top:15px}
+    @media(max-width:1150px){.grid{grid-template-columns:320px 1fr}.side{grid-column:1/-1;grid-template-columns:1fr 1fr}}@media(max-width:780px){.shell{padding:14px}.top{align-items:flex-start;flex-direction:column}.grid,.side{grid-template-columns:1fr}.canvas{min-height:820px}.node{width:140px}.analyze{left:calc(50% - 70px)}.router{left:calc(50% - 70px)}.tax{left:10px;top:390px}.compliance{left:calc(50% - 70px);top:500px}.privacy{right:10px;top:390px}.aggregate{left:calc(50% - 70px);top:660px}.send-label{top:320px}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+  </style>
+</head>
+<body>
+<main class="shell">
+  <header class="top">
+    <div><div class="eyebrow">CODELAB · LangGraph StateGraph</div><h1>In-Process Multi-Agent Demo</h1><p class="sub">Mô phỏng Stage 4: shared LegalState, conditional routing, LangGraph Send() fan-out song song, reducers và aggregate trong một Python process.</p></div>
+    <div class="badge">Stage 4 · No HTTP · No Registry</div>
+  </header>
+  <section class="grid">
+    <aside class="card panel">
+      <h2>Điều khiển graph</h2>
+      <div class="field"><label for="scenario">Kịch bản</label><select id="scenario"><option value="all">Tax + Compliance + Privacy</option><option value="tax">Tax only</option><option value="privacy">Privacy only</option><option value="none">Không cần specialist</option></select></div>
+      <div class="field"><label for="question">Legal question</label><textarea id="question">A company avoids taxes, fails SEC reporting, and processes customer data without consent. What are the risks?</textarea><div class="helper">Router tạo danh sách Send() dựa trên câu hỏi.</div></div>
+      <div class="buttons"><button class="btn primary" id="run">Chạy graph</button><button class="btn" id="step">Từng bước</button><button class="btn" id="reset">Reset</button><button class="btn" id="copy">Copy state JSON</button></div>
+      <div class="concept">
+        <div><strong>Single process</strong><small>Tất cả nodes chạy trong cùng Python runtime.</small></div>
+        <div><strong>Shared LegalState</strong><small>Agents trả về state patches, reducers merge kết quả.</small></div>
+        <div><strong>Send API</strong><small>Dispatch specialist nodes song song sau router.</small></div>
+      </div>
+    </aside>
+
+    <section class="card canvas-card">
+      <div class="canvas-head"><strong>LangGraph execution map</strong><span class="process-pill">process_id: stage4-local</span></div>
+      <div class="canvas" id="canvas">
+        <div class="graph-box"><div class="graph-label">LegalState StateGraph · shared memory</div></div>
+        <svg class="links" viewBox="0 0 900 700" preserveAspectRatio="none" aria-hidden="true">
+          <path id="l-ar" class="link" d="M450 178 L450 218"/><path id="l-rt" class="link" d="M420 296 C330 330 220 350 130 380"/><path id="l-rc" class="link" d="M450 296 L450 380"/><path id="l-rp" class="link" d="M480 296 C570 330 680 350 770 380"/>
+          <path id="l-ta" class="link" d="M130 458 C230 515 340 545 430 570"/><path id="l-ca" class="link" d="M450 458 L450 555"/><path id="l-pa" class="link" d="M770 458 C670 515 560 545 470 570"/><path id="l-ra" class="link" d="M450 296 L450 555"/>
+        </svg>
+        <div class="packet" id="packet">state patch</div><div class="send-label">Send() · parallel fan-out</div>
+        <article class="node analyze" id="analyze"><div class="node-top"><span class="status">waiting</span><span>01</span></div><h3>analyze_law</h3><p>Lead attorney analysis</p></article>
+        <article class="node router" id="router"><div class="node-top"><span class="status">waiting</span><span>02</span></div><h3>check_routing</h3><p>Set needs_tax/compliance/privacy</p></article>
+        <article class="node tax" id="tax"><div class="node-top"><span class="status">waiting</span><span>Send</span></div><h3>call_tax_specialist</h3><p>Inline ReAct + search_tax_law</p></article>
+        <article class="node compliance" id="compliance"><div class="node-top"><span class="status">waiting</span><span>Send</span></div><h3>call_compliance_specialist</h3><p>Inline ReAct + compliance tool</p></article>
+        <article class="node privacy" id="privacy"><div class="node-top"><span class="status">waiting</span><span>Send</span></div><h3>call_privacy_specialist</h3><p>GDPR and personal data</p></article>
+        <article class="node aggregate" id="aggregate"><div class="node-top"><span class="status">waiting</span><span>END</span></div><h3>aggregate</h3><p>Reducer-merged final answer</p></article>
+      </div>
+    </section>
+
+    <aside class="side">
+      <section class="card panel"><h2>Execution metrics</h2><div class="metrics"><div class="metric"><span>Active sends</span><strong id="sendMetric">0</strong></div><div class="metric"><span>State writes</span><strong id="writeMetric">0</strong></div><div class="metric"><span>Events</span><strong id="eventMetric">0</strong></div></div></section>
+      <section class="card panel"><h2>Shared LegalState</h2><div class="state" id="stateView"></div></section>
+      <section class="card panel"><h2>Current action</h2><div class="message" id="message">Sẵn sàng chạy StateGraph.</div></section>
+      <section class="card panel"><h2>Execution timeline</h2><div class="timeline" id="timeline"></div></section>
+      <section class="card panel"><h2>Stage 4 vs Stage 5</h2><div class="compare"><div><strong>Stage 4</strong><small>Direct calls, shared state, single process, easy debug.</small></div><div><strong>Stage 5</strong><small>A2A/HTTP, Registry discovery, message passing, independent services.</small></div></div></section>
+    </aside>
+  </section>
+  <p class="footer">Standalone HTML demo · Bám theo stages/stage_4_milti_agent/main.py · Không gọi LLM/API thật.</p>
+</main>
+<script>
+const $=id=>document.getElementById(id),sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const pos={analyze:[450,139],router:[450,257],tax:[130,419],compliance:[450,419],privacy:[770,419],aggregate:[450,594]};
+const samples={all:"A company avoids taxes, fails SEC reporting, and processes customer data without consent. What are the risks?",tax:"What IRS penalties apply when a company avoids taxes?",privacy:"What GDPR risks arise when customer data is processed without consent?",none:"Explain the elements required for a valid commercial contract."};
+let state={},events=[],steps=[],idx=0,running=false,writes=0;
+function scenarioFlags(){const s=$("scenario").value;return{tax:s==="all"||s==="tax",compliance:s==="all",privacy:s==="all"||s==="privacy"}}
+function freshState(){return{question:$("question").value,law_analysis:"",needs_tax:false,needs_compliance:false,needs_privacy:false,tax_result:"",compliance_result:"",privacy_result:"",final_answer:""}}
+function renderState(){const keys=["question","law_analysis","needs_tax","needs_compliance","needs_privacy","tax_result","compliance_result","privacy_result","final_answer"];$("stateView").innerHTML=keys.map(k=>`<div class="state-row"><span>${k}</span><span class="value">${typeof state[k]==="boolean"?state[k]:(state[k]?"written":"empty")}</span></div>`).join("")}
+function patch(data,node){Object.assign(state,data);writes+=Object.keys(data).length;$("writeMetric").textContent=writes;renderState();event(node,"state_patch",Object.keys(data).join(", "))}
+function event(node,action,detail,type=""){events.push({node,action,detail,timestamp:new Date().toISOString()});const e=document.createElement("div");e.className=`event ${type}`;e.innerHTML=`<div class="event-meta"><span>${node} · ${action}</span><span>${events.length}</span></div><p>${detail}</p>`;$("timeline").prepend(e);$("eventMetric").textContent=events.length}
+async function pulse(id,msg,ms=430){document.querySelectorAll(".node").forEach(n=>n.classList.remove("active"));$(id).classList.add("active");$(id).querySelector(".status").textContent="running";$("message").innerHTML=msg;await sleep(ms)}
+async function move(from,to,label,link,ms=470){const p=$("packet"),a=pos[from],b=pos[to];p.textContent=label;p.style.display="block";p.style.left=`${a[0]}px`;p.style.top=`${a[1]}px`;$(link).classList.add("hot");p.animate([{transform:"translate(-50%,-50%)"},{transform:`translate(-50%,-50%) translate(${b[0]-a[0]}px,${b[1]-a[1]}px)`}],{duration:ms,easing:"ease-in-out"});await sleep(ms);p.style.display="none";$(link).classList.remove("hot")}
+function done(id){$(id).classList.remove("active");$(id).classList.add("done");$(id).querySelector(".status").textContent="done"}
+function build(){const f=scenarioFlags(),active=["tax","compliance","privacy"].filter(k=>f[k]);$("sendMetric").textContent=active.length;["tax","compliance","privacy"].forEach(k=>$(k).classList.toggle("skipped",!f[k]));return[
+async()=>{await pulse("analyze","Lead attorney phân tích câu hỏi và trả về patch <code>law_analysis</code>.");patch({law_analysis:"Lead attorney analysis completed."},"analyze_law");done("analyze")},
+async()=>{await move("analyze","router","LegalState","l-ar");await pulse("router",`Router quyết định ${active.length} specialist branches và tạo danh sách Send().`);patch({needs_tax:f.tax,needs_compliance:f.compliance,needs_privacy:f.privacy},"check_routing");event("route_to_specialists","Send()",active.length?active.join(" + "):"aggregate directly","parallel");done("router")},
+...(active.length?[async()=>{await Promise.all(active.map(async(name)=>{const link={tax:"l-rt",compliance:"l-rc",privacy:"l-rp"}[name];await move("router",name,"Send(state)",link);await pulse(name,`${name} specialist chạy inline trong cùng process.`);await sleep(250);patch({[`${name}_result`]:`${name} specialist result.`},`call_${name}_specialist`);done(name)}));$("message").innerHTML="<strong>Parallel complete.</strong> Reducers đã merge các specialist patches vào LegalState.";event("LangGraph","parallel_join","All Send branches completed","parallel")}]:[]),
+async()=>{const source=active.length?active[active.length-1]:"router",link=active.length?({tax:"l-ta",compliance:"l-ca",privacy:"l-pa"}[source]):"l-ra";await move(source,"aggregate","merged state",link);await pulse("aggregate","Aggregate đọc shared LegalState và tổng hợp final answer.");patch({final_answer:"Combined legal and specialist analysis."},"aggregate");done("aggregate");$("message").innerHTML="<strong>Graph END.</strong> Không có HTTP, Registry hay A2A hop; toàn bộ chạy trong một process."}
+]}
+async function one(){if(running||idx>=steps.length)return;running=true;$("run").disabled=$("step").disabled=true;await steps[idx++]();running=false;$("run").disabled=false;$("step").disabled=idx>=steps.length}
+async function all(){while(idx<steps.length)await one()}
+function reset(){state=freshState();events=[];steps=[];idx=0;running=false;writes=0;document.querySelectorAll(".node").forEach(n=>{n.classList.remove("active","done","skipped");n.querySelector(".status").textContent="waiting"});$("timeline").innerHTML="";$("writeMetric").textContent="0";$("eventMetric").textContent="0";$("message").textContent="Sẵn sàng chạy StateGraph.";renderState();steps=build();$("run").disabled=$("step").disabled=false}
+$("scenario").addEventListener("change",()=>{$("question").value=samples[$("scenario").value];reset()});$("run").addEventListener("click",all);$("step").addEventListener("click",one);$("reset").addEventListener("click",reset);$("copy").addEventListener("click",async()=>{await navigator.clipboard.writeText(JSON.stringify(state,null,2));$("message").textContent="Đã copy LegalState JSON."});reset();
+</script>
+</body>
+</html>
