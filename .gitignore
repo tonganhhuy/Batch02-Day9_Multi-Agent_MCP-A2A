@@ -3,3 +3,8 @@
 **cache**
 .claude
 **SOLUTION**
+Day08_RAG_pipeline_cohort2/.env
+Day08_RAG_pipeline_cohort2/**/__pycache__/
+Day08_RAG_pipeline_cohort2/.pytest_cache/
+Day08_RAG_pipeline_cohort2/.deepeval/
+Day08_RAG_pipeline_cohort2/.idea/

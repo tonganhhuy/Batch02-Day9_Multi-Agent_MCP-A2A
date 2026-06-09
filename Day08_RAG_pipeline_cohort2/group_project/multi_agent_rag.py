@@ -7,6 +7,7 @@ import re
 import subprocess
 import sys
 import time
+from functools import lru_cache
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -183,6 +184,38 @@ def _apply_worker_patch(state: RAGState, agent: AgentName, patch: dict[str, Any]
         setattr(state, field_name, value)
 
 
+@lru_cache(maxsize=128)
+def _fast_route_search(query: str, source_type: str, top_k: int) -> tuple[dict, ...]:
+    """Low-latency retrieval using the in-memory BM25 index, scoped by type."""
+    from src.task6_lexical_search import lexical_search
+
+    candidates = lexical_search(query, top_k=120)
+    query_terms = set(re.findall(r"\w+", query.casefold()))
+    typed: list[dict] = []
+    for candidate in candidates:
+        if candidate.get("metadata", {}).get("type", "").casefold() != source_type:
+            continue
+        item = dict(candidate)
+        content_terms = set(re.findall(r"\w+", item.get("content", "").casefold()))
+        overlap = len(query_terms & content_terms)
+        item["score"] = float(item.get("score", 0.0) + overlap * 0.25)
+        item["source"] = "fast_bm25"
+        typed.append(item)
+
+    typed.sort(key=lambda item: item.get("score", 0.0), reverse=True)
+    return tuple(typed[:top_k])
+
+
+def warm_fast_retrieval() -> int:
+    """Build the shared BM25 index during app startup instead of first question."""
+    from src.task6_lexical_search import CORPUS, lexical_search
+
+    lexical_search("ma túy", top_k=1)
+    from src.task6_lexical_search import CORPUS as loaded_corpus
+
+    return len(loaded_corpus or CORPUS)
+
+
 def _run_worker(state: RAGState, message: AgentMessage, worker) -> dict[str, Any]:
     started = time.perf_counter()
     try:
@@ -223,12 +256,16 @@ def retriever_worker(
     source_type = message.payload["source_type"]
     requested_top_k = message.payload["top_k"]
     retrieval_query = message.payload.get("retrieval_query", state.query)
-    candidates = retrieve(
-        retrieval_query,
-        top_k=max(requested_top_k * 4, 12),
-        score_threshold=message.payload["score_threshold"],
-        use_reranking=message.payload["use_reranking"],
-    )
+    fast_mode = message.payload.get("fast_mode", True)
+    if fast_mode:
+        candidates = list(_fast_route_search(retrieval_query, source_type, requested_top_k))
+    else:
+        candidates = retrieve(
+            retrieval_query,
+            top_k=max(requested_top_k * 4, 12),
+            score_threshold=message.payload["score_threshold"],
+            use_reranking=message.payload["use_reranking"],
+        )
     typed = [
         chunk
         for chunk in candidates
@@ -236,7 +273,7 @@ def retriever_worker(
     ]
     # The shared retrieval pipeline searches the whole corpus. If its top list
     # misses the requested type, widen lexical search before giving up.
-    if len(typed) < requested_top_k:
+    if not fast_mode and len(typed) < requested_top_k:
         try:
             from src.task6_lexical_search import lexical_search
 
@@ -252,7 +289,11 @@ def retriever_worker(
     selected = typed[:requested_top_k]
     batches = dict(state.retrieval_batches)
     batches[source_type] = selected
-    summary = f"Retrieval chuyên route={source_type}: {len(candidates)} candidates, chọn {len(selected)} chunks."
+    retrieval_method = "fast_bm25" if fast_mode else "hybrid"
+    summary = (
+        f"Retrieval chuyên route={source_type} bằng {retrieval_method}: "
+        f"{len(candidates)} candidates, chọn {len(selected)} chunks."
+    )
     return (
         {"retrieval_batches": batches},
         summary,
@@ -261,6 +302,7 @@ def retriever_worker(
             "candidate_count": len(candidates),
             "selected_count": len(selected),
             "query_enriched": retrieval_query != state.query,
+            "retrieval_method": retrieval_method,
         },
     )
 
@@ -486,6 +528,7 @@ def run_multi_agent_rag(
     top_k: int = 5,
     score_threshold: float = 0.3,
     use_reranking: bool = True,
+    fast_mode: bool = True,
 ) -> RAGState:
     """Run conditional supervised workflow and return answer plus observable trace."""
     state = RAGState(
@@ -495,6 +538,7 @@ def run_multi_agent_rag(
             "top_k": top_k,
             "score_threshold": score_threshold,
             "use_reranking": use_reranking,
+            "fast_mode": fast_mode,
         },
     )
     state.route, state.route_reason = _route_query(query)

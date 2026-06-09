@@ -68,6 +68,10 @@ The UI shows the final answer, selected route, source documents, message
 contract, MCP result, and observable reasoning flow. The displayed flow is an
 action/result trace for debugging, not private model chain-of-thought.
 
+`Fast mode` is enabled by default. It uses the cached BM25 index scoped by route
+and skips loading semantic/cross-encoder models for every worker call. Disable
+it in the sidebar when a slower full hybrid retrieval run is needed.
+
 ## Rubric Evidence
 
 | Criterion | Evidence |

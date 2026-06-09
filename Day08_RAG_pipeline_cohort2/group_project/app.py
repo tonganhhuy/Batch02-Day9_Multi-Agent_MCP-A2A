@@ -12,10 +12,18 @@ except ImportError:
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from group_project.multi_agent_rag import run_multi_agent_rag
+from group_project.multi_agent_rag import run_multi_agent_rag, warm_fast_retrieval
 
 
 st.set_page_config(page_title="Multi-Agent DrugLaw RAG", page_icon="🔎", layout="wide")
+
+
+@st.cache_resource(show_spinner="Đang chuẩn bị chỉ mục tìm kiếm nhanh...")
+def prepare_fast_index() -> int:
+    return warm_fast_retrieval()
+
+
+indexed_chunks = prepare_fast_index()
 
 st.markdown(
     """
@@ -33,6 +41,7 @@ st.markdown(
 
 with st.sidebar:
     st.header("Cấu hình hệ thống")
+    fast_mode = st.toggle("Fast mode", value=True, help="BM25 theo route, bỏ tải model semantic/reranker mỗi câu hỏi.")
     use_reranking = st.toggle("Kích hoạt reranking", value=True)
     score_threshold = st.slider("Ngưỡng retrieval", 0.0, 1.0, 0.3, 0.05)
     top_k = st.slider("Số context", 1, 10, 5)
@@ -45,6 +54,7 @@ with st.sidebar:
         "Answer Writer: cited answer",
         language=None,
     )
+    st.caption(f"Fast index sẵn sàng: {indexed_chunks} chunks")
 
 st.markdown("<div class='main-header'>Multi-Agent DrugLaw RAG</div>", unsafe_allow_html=True)
 st.caption("Supervisor + 3 workers, có route rõ, MCP capability và observable trace.")
@@ -69,6 +79,7 @@ if query:
                 top_k=top_k,
                 score_threshold=score_threshold,
                 use_reranking=use_reranking,
+                fast_mode=fast_mode,
             )
         st.markdown(state.answer)
 
