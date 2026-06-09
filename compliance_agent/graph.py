@@ -6,9 +6,16 @@ No tools — it answers purely from LLM knowledge.
 
 from __future__ import annotations
 
-from langgraph.prebuilt import create_react_agent
+from typing import Annotated, Sequence
+from typing_extensions import TypedDict
+from langgraph.graph import END, START, StateGraph
+from langgraph.graph.message import add_messages
+from langchain_core.messages import BaseMessage, SystemMessage
 
 from common.llm import get_llm
+
+class AgentState(TypedDict):
+    messages: Annotated[Sequence[BaseMessage], add_messages]
 
 COMPLIANCE_SYSTEM_PROMPT = """You are a senior regulatory compliance officer and corporate attorney
 with deep expertise in:
@@ -37,12 +44,18 @@ should consult a licensed attorney for specific compliance advice.
 """
 
 
-def create_graph():
-    """Return a compiled LangGraph create_react_agent for compliance questions."""
+async def call_llm(state: AgentState) -> dict:
     llm = get_llm()
-    graph = create_react_agent(
-        model=llm,
-        tools=[],
-        prompt=COMPLIANCE_SYSTEM_PROMPT,
-    )
-    return graph
+    system_msg = SystemMessage(content=COMPLIANCE_SYSTEM_PROMPT)
+    messages = [system_msg] + state["messages"]
+    response = await llm.ainvoke(messages)
+    return {"messages": [response]}
+
+
+def create_graph():
+    """Return a compiled LangGraph for compliance questions, bypassing ReAct loop overhead."""
+    graph = StateGraph(AgentState)
+    graph.add_node("agent", call_llm)
+    graph.add_edge(START, "agent")
+    graph.add_edge("agent", END)
+    return graph.compile()

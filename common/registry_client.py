@@ -5,10 +5,19 @@ and `register(agent_info)` for agents to self-register on startup.
 """
 
 import os
-
 import httpx
 
 REGISTRY_URL = os.getenv("REGISTRY_URL", "http://localhost:10000")
+
+_client = None
+_discover_cache = {}
+
+
+def get_client() -> httpx.AsyncClient:
+    global _client
+    if _client is None:
+        _client = httpx.AsyncClient(timeout=10.0)
+    return _client
 
 
 async def discover(task: str) -> str:
@@ -23,10 +32,15 @@ async def discover(task: str) -> str:
     Raises:
         httpx.HTTPStatusError: If no agent is found or the registry is unreachable.
     """
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        resp = await client.get(f"{REGISTRY_URL}/discover/{task}")
-        resp.raise_for_status()
-        return resp.json()["endpoint"]
+    if task in _discover_cache:
+        return _discover_cache[task]
+
+    client = get_client()
+    resp = await client.get(f"{REGISTRY_URL}/discover/{task}")
+    resp.raise_for_status()
+    endpoint = resp.json()["endpoint"]
+    _discover_cache[task] = endpoint
+    return endpoint
 
 
 async def register(agent_info: dict) -> None:
@@ -39,6 +53,6 @@ async def register(agent_info: dict) -> None:
     Raises:
         httpx.HTTPStatusError: If registration fails.
     """
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        resp = await client.post(f"{REGISTRY_URL}/register", json=agent_info)
-        resp.raise_for_status()
+    client = get_client()
+    resp = await client.post(f"{REGISTRY_URL}/register", json=agent_info)
+    resp.raise_for_status()

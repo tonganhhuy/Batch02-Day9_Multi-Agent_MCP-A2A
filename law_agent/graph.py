@@ -51,44 +51,43 @@ class LawState(TypedDict):
 # Node implementations
 # ---------------------------------------------------------------------------
 
-async def analyze_law(state: LawState) -> dict:
-    """LLM analysis from a contract / general law perspective."""
+async def analyze_and_route(state: LawState) -> dict:
+    """Consolidated node: performs contract law analysis and routing decisions in a single LLM call."""
+    depth = state.get("delegation_depth", 0)
+    if depth >= MAX_DELEGATION_DEPTH:
+        logger.info("Max delegation depth reached (%d); skipping sub-agents", depth)
+        llm = get_llm()
+        messages = [
+            SystemMessage(
+                content=(
+                    "You are a senior corporate litigation attorney specialising in contract law, "
+                    "tort law, and general business law. Analyse the legal aspects of the question "
+                    "thoroughly, covering relevant statutes, case law principles, and liability exposure."
+                )
+            ),
+            HumanMessage(content=state["question"]),
+        ]
+        result = await llm.ainvoke(messages)
+        return {
+            "law_analysis": result.content,
+            "needs_tax": False,
+            "needs_compliance": False,
+        }
+
+    # If depth < MAX_DELEGATION_DEPTH, we do a combined LLM call requesting JSON
     llm = get_llm()
     messages = [
         SystemMessage(
             content=(
                 "You are a senior corporate litigation attorney specialising in contract law, "
-                "tort law, and general business law. Analyse the legal aspects of the question "
-                "thoroughly, covering relevant statutes, case law principles, and liability exposure."
-            )
-        ),
-        HumanMessage(content=state["question"]),
-    ]
-    result = await llm.ainvoke(messages)
-    return {"law_analysis": result.content}
-
-
-async def check_routing(state: LawState) -> dict:
-    """Determine whether tax and/or compliance sub-agents are needed.
-
-    Returns updated state flags so the routing function can read them.
-    If delegation depth is already at the max, skip further delegation.
-    """
-    depth = state.get("delegation_depth", 0)
-    if depth >= MAX_DELEGATION_DEPTH:
-        logger.info("Max delegation depth reached (%d); skipping sub-agents", depth)
-        return {"needs_tax": False, "needs_compliance": False}
-
-    llm = get_llm()
-    messages = [
-        SystemMessage(
-            content=(
-                'You are a legal routing expert. Based on the question, decide whether '
-                'specialist sub-agents are needed.\n'
-                'Reply with ONLY valid JSON — no markdown, no extra text:\n'
-                '{"needs_tax": <true|false>, "needs_compliance": <true|false>}\n\n'
-                'needs_tax = true  → question involves tax law, IRS, tax evasion, penalties\n'
-                'needs_compliance = true → question involves regulatory compliance, SEC, SOX, AML, FCPA'
+                "tort law, and general business law. Analyze the legal aspects of the question "
+                "thoroughly. Additionally, decide whether specialist tax and/or compliance sub-agents are needed.\n\n"
+                "You MUST reply with ONLY valid JSON containing the following keys (no markdown code blocks, no extra text):\n"
+                "{\n"
+                '  "analysis": "Your thorough contract and general business law analysis (under 200 words)",\n'
+                '  "needs_tax": <true|false> (true if the question involves tax law, IRS, tax evasion, or penalties),\n'
+                '  "needs_compliance": <true|false> (true if the question involves regulatory compliance, SEC, SOX, AML, or FCPA)\n'
+                "}"
             )
         ),
         HumanMessage(content=state["question"]),
@@ -105,14 +104,21 @@ async def check_routing(state: LawState) -> dict:
 
     try:
         parsed = json.loads(raw)
-    except json.JSONDecodeError:
-        logger.warning("Routing LLM returned non-JSON: %r — defaulting to both=True", raw)
-        parsed = {"needs_tax": True, "needs_compliance": True}
+        analysis = parsed.get("analysis", "")
+        needs_tax = bool(parsed.get("needs_tax", True))
+        needs_compliance = bool(parsed.get("needs_compliance", True))
+    except Exception as exc:
+        logger.warning("Combined LLM returned non-JSON: %r — defaulting to both=True. Error: %s", raw, exc)
+        analysis = raw
+        needs_tax = True
+        needs_compliance = True
 
-    needs_tax = bool(parsed.get("needs_tax", True))
-    needs_compliance = bool(parsed.get("needs_compliance", True))
-    logger.info("Routing decision: needs_tax=%s needs_compliance=%s", needs_tax, needs_compliance)
-    return {"needs_tax": needs_tax, "needs_compliance": needs_compliance}
+    logger.info("Combined node decision: needs_tax=%s needs_compliance=%s", needs_tax, needs_compliance)
+    return {
+        "law_analysis": analysis,
+        "needs_tax": needs_tax,
+        "needs_compliance": needs_compliance,
+    }
 
 
 def route_to_subagents(state: LawState) -> list[Send]:
@@ -212,19 +218,17 @@ def create_graph():
     """Build and compile the Law Agent StateGraph."""
     graph = StateGraph(LawState)
 
-    graph.add_node("analyze_law", analyze_law)
-    graph.add_node("check_routing", check_routing)
+    graph.add_node("analyze_and_route", analyze_and_route)
     graph.add_node("call_tax", call_tax)
     graph.add_node("call_compliance", call_compliance)
     graph.add_node("aggregate", aggregate)
 
-    graph.set_entry_point("analyze_law")
-    graph.add_edge("analyze_law", "check_routing")
+    graph.set_entry_point("analyze_and_route")
 
-    # Conditional parallel dispatch: after check_routing, route_to_subagents
+    # Conditional parallel dispatch: after analyze_and_route, route_to_subagents
     # returns a list of Send objects (to call_tax, call_compliance, or aggregate)
     graph.add_conditional_edges(
-        "check_routing",
+        "analyze_and_route",
         route_to_subagents,
         ["call_tax", "call_compliance", "aggregate"],
     )
